@@ -18,11 +18,11 @@ resource "aws_security_group" "web" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "http" {
-  security_group_id = aws_security_group.web.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "tcp"
-  from_port         = 80
-  to_port           = 80
+  security_group_id            = aws_security_group.web.id
+  referenced_security_group_id = aws_security_group.alb.id
+  ip_protocol                  = "tcp"
+  from_port                    = 80
+  to_port                      = 80
 }
 
 resource "aws_vpc_security_group_egress_rule" "all" {
@@ -42,13 +42,13 @@ data "aws_ami" "al2023" {
 }
 
 resource "aws_instance" "web" {
-  ami                    = data.aws_ami.al2023.id
-  instance_type          = "t3.micro"
-  subnet_id              = data.terraform_remote_state.network.outputs.public_subnet_ids[0]
-  vpc_security_group_ids = [aws_security_group.web.id]
-  iam_instance_profile   = aws_iam_instance_profile.web.name
+  ami                         = data.aws_ami.al2023.id
+  instance_type               = "t3.micro"
+  subnet_id                   = data.terraform_remote_state.network.outputs.public_subnet_ids[0]
+  vpc_security_group_ids      = [aws_security_group.web.id]
+  iam_instance_profile        = aws_iam_instance_profile.web.name
   user_data_replace_on_change = true
-  user_data = <<-EOF
+  user_data                   = <<-EOF
 	 #!/bin/bash
 	 dnf install -y docker
 	 systemctl enable --now docker
@@ -73,14 +73,14 @@ resource "aws_iam_role" "web" {
 }
 
 resource "aws_iam_role_policy_attachment" "ssm" {
-  role = aws_iam_role.web.name
+  role       = aws_iam_role.web.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_instance_profile" "web" {
   name = "aws-platform-web"
   role = aws_iam_role.web.name
-  
+
 }
 
 
