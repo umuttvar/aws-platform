@@ -7,6 +7,21 @@ data "terraform_remote_state" "network" {
   }
 }
 
+data "terraform_remote_state" "registry" {
+  backend = "s3"
+  config = {
+    bucket = "umuttvar-aws-platform-tfstate"
+    key    = "registry/terraform.tfstate"
+    region = "eu-central-1"
+  }
+}
+
+locals {
+  ecr_repo  = data.terraform_remote_state.registry.outputs.repository_url
+  ecr_host  = split("/", local.ecr_repo)[0]
+  image_tag = "f697565"
+}
+
 resource "aws_security_group" "web" {
   name        = "aws-platform-web"
   description = "demo-app web server"
@@ -49,11 +64,12 @@ resource "aws_instance" "web" {
   iam_instance_profile        = aws_iam_instance_profile.web.name
   user_data_replace_on_change = true
   user_data                   = <<-EOF
-	 #!/bin/bash
-	 dnf install -y docker
-	 systemctl enable --now docker
-	 docker run -d --restart always -p 80:8000 ghcr.io/umuttvar/demo-app:1.0.37
-	 EOF
+    #!/bin/bash
+    dnf install -y docker
+    systemctl enable --now docker
+    aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin ${local.ecr_host}
+    docker run -d --restart always -p 80:8000 ${local.ecr_repo}:${local.image_tag}
+  EOF
 
   tags = {
     Name = "aws-platform-web"
@@ -75,6 +91,11 @@ resource "aws_iam_role" "web" {
 resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.web.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "ecr_read" {
+  role       = aws_iam_role.web.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
 resource "aws_iam_instance_profile" "web" {
