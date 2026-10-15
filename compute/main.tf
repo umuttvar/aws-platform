@@ -19,7 +19,7 @@ data "terraform_remote_state" "registry" {
 locals {
   ecr_repo  = data.terraform_remote_state.registry.outputs.repository_url
   ecr_host  = split("/", local.ecr_repo)[0]
-  image_tag = "f697565"
+  image_tag = var.image_tag
 }
 
 resource "aws_security_group" "web" {
