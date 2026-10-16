@@ -1,0 +1,5 @@
+replicaCount: 2
+
+image:
+  repository: 621972219921.dkr.ecr.eu-central-1.amazonaws.com/demo-app
+  tag: "6782f69"
